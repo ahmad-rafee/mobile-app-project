@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:main/Property.dart';
 import 'package:main/database.dart';
 import 'package:main/information.dart';
+import 'package:main/pagestenant/apartment.dart';
 import 'package:main/pagestenant/apartmentt.dart';
 import 'package:main/pagestenant/fav.dart';
 import 'package:main/pagestenant/favD.dart';
@@ -10,6 +12,7 @@ import 'package:main/pagestenant/note.dart';
 import 'package:main/pagestenant/setting.dart';
 import 'package:main/prop.dart';
 import 'package:main/search.dart';
+import 'package:main/apiser.dart';
 
 class hometenant extends StatefulWidget {
   const hometenant({super.key});
@@ -177,107 +180,61 @@ class _hometenantState extends State<hometenant> {
     );
   }
 
-  List allHouses = [
-    {
-      "name": "Lorem House",
-      "category": "Recommended",
-      "price": "340",
-      "location": "Syria/Damascus",
-      "image": "images/build1.png",
-      "area": 85.0,
-      "rooms": 6,
-      "isSaved": false,
-    },
-    {
-      "name": "building",
-      "category": "Recommended",
-      "price": "140",
-      "location": "Jordon/Amman",
-      "image": "images/build2.png",
-      "area": 150.0,
-      "rooms": 10,
-      "isSaved": false,
-    },
-    {
-      "name": "Farm",
-      "category": "Recommended",
-      "price": "590",
-      "location": "Scotland/Tayside",
-      "image": "images/build6.png",
-      "area": 1275.0,
-      "rooms": 17,
-      "isSaved": false,
-    },
-    {
-      "name": "Luxury Villa",
-      "category": "Top Rates",
-      "price": "500",
-      "location": "Downtown/Dubai",
-      "image": "images/build3.png",
-      "area": 200.0,
-      "rooms": 6,
-      "isSaved": false,
-    },
-    {
-      "name": "Small House",
-      "category": "Top Rates",
-      "price": "800",
-      "location": "UAE/Dubai",
-      "image": "images/build7.png",
-      "area": 100.0,
-      "rooms": 3,
-      "isSaved": false,
-    },
-    {
-      "name": "Red Cottage",
-      "category": "Best Offers",
-      "price": "220",
-      "location": "Sweden/Dalarna",
-      "image": "images/build4.png",
-      "area": 75.0,
-      "rooms": 2,
-      "isSaved": false,
-    },
-    {
-      "name": "Car office",
-      "category": "Top Rates",
-      "price": "370",
-      "location": "Russia/Moscow",
-      "image": "images/build8.png",
-      "area": 350.0,
-      "rooms": 8,
-      "isSaved": false,
-    },
-  ];
+  List<dynamic> allHouses = [];
   List filteredHouses = [];
-
-  ListTile _drawerItem(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon, color: primaryBlue),
-      title: Text(title),
-      onTap: onTap,
-    );
-  }
-
-  final Color primaryBlue = const Color(0xFF1E88E5);
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    filterData("Recommended");
-    for (var house in allHouses) {
-      house['isSaved'] = favoriteHouses.any(
-        (fav) => fav['name'] == house['name'],
-      );
+    fetchApartments();
+  }
+
+  Future<void> fetchApartments() async {
+    try {
+      final apartments = await ApiService.getApartments();
+      setState(() {
+        allHouses = apartments.map((apt) {
+          String imageUrl = "images/build1.png"; // default
+          if (apt['images'] != null && (apt['images'] as List).isNotEmpty) {
+             imageUrl = "${ApiService.storageBaseUrl}${apt['images'][0]['path']}";
+          }
+
+          return {
+            "name": apt['title'] ?? "Apartment",
+            "category": "Recommended", // Default category
+            "price": apt['price'].toString(),
+            "location": "${apt['governorate']}/${apt['city']}",
+            "image": imageUrl,
+            "area": double.tryParse(apt['area'].toString()) ?? 0.0,
+            "rooms": int.tryParse(apt['rooms'].toString()) ?? 0,
+            "isSaved": false,
+            "description": apt['description'] // Store description
+          };
+        }).toList();
+        
+        filterData("Recommended");
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching apartments: $e");
+      setState(() {
+        isLoading = false;
+        // Fallback to empty or show error
+      });
     }
   }
 
   void filterData(String category) {
     setState(() {
       selectedCategory = category;
-      filteredHouses = allHouses
-          .where((house) => house['category'] == category)
-          .toList();
+      // Since we don't have categories in backend yet, we just show all or implement client-side category logic
+      // For now, allow all "Recommended" to show everything, or just ignore category filtering for API data
+      if (allHouses.isEmpty) return;
+
+      filteredHouses = allHouses; 
+      
+      // Update favorites
       for (var house in filteredHouses) {
         house['isSaved'] = favoriteHouses.any(
           (fav) => fav['name'] == house['name'],
@@ -288,6 +245,11 @@ class _hometenantState extends State<hometenant> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.grey[200],

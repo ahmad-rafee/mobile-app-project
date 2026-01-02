@@ -4,6 +4,18 @@ class Database {
   static const String Log = "IsLogin";
   static const String FirstT = "FirstTime";
   static const String AccType = "AccountType";
+  static const String Token = "AuthToken";
+
+  Future<void> saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(Token, token);
+  }
+
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(Token);
+  }
+
   Future<void> saveAccountType(String type) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AccType, type);
@@ -23,6 +35,7 @@ class Database {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(Log, false);
+    await prefs.remove(Token);
   }
 
   Future<bool> isLoggedIn() async {

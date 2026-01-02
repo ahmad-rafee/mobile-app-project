@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:main/gridv.dart';
 import 'package:main/homesc.dart';
 import 'package:main/signup.dart';
+import 'package:main/apiser.dart';
+import 'package:main/tenant.dart';
+import 'package:main/pagesowner/views/dashboardview.dart';
 
 import 'database.dart';
 //import 'package:main/HomeScreen.dart';
@@ -118,7 +121,7 @@ class _MyLoginPageState extends State<MyLoginPage> {
                     Icons.person_outlined,
                     color: Colors.grey[600],
                   ),
-                  hintText: 'Username',
+                  hintText: 'Phone Number',
                   hintStyle: TextStyle(color: Colors.grey[600]),
                   filled: true,
                   fillColor: Color.fromRGBO(245, 245, 245, 0.842),
@@ -199,11 +202,37 @@ class _MyLoginPageState extends State<MyLoginPage> {
                     );
                     return;
                   }
-                  await Database().login();
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => gridv()),
-                  );
+                  await Database().login(); // Mark not first time/logged in locally
+                  
+                  try {
+                    final response = await ApiService.login(
+                      phone: username, // using username field as phone
+                      password: password,
+                    );
+
+                    final role = response['user']['role'];
+                    await Database().saveAccountType(role);
+                    
+                    if (role == 'owner') {
+                       Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => DashboardView()),
+                      );                     
+                    } else {
+                       Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => tenant()),
+                      );
+                    }
+                   
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Login Failed: ${e.toString()}"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 child: Text(
                   "Sign In",

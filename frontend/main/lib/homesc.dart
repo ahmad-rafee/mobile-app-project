@@ -8,6 +8,9 @@ import 'package:main/database.dart';
 import 'package:main/pagesowner/views/dashboardview.dart';
 import 'package:main/tenant.dart';
 
+import 'package:main/apiser.dart';
+import 'package:main/information.dart';
+
 import 'gridv.dart';
 
 class homesc extends StatefulWidget {
@@ -343,6 +346,62 @@ class _HomescState extends State<homesc> {
                   );
                   return;
                 }
+                if (imageFile == null || idImageFile == null || selectedDate == null) {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Colors.red,
+                      content: Text("Please fill all data and upload images"),
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Registering... Please wait.")));
+
+                  final response = await ApiService.register(
+                    firstName: fNameController.text,
+                    lastName: lNameController.text,
+                    phone: widget.phoneNumber,
+                    password: widget.password,
+                    birthDate: "${selectedDate!.year}-${selectedDate!.month}-${selectedDate!.day}",
+                    profileImage: imageFile!,
+                    idImage: idImageFile!,
+                    role: widget.accountType,
+                  );
+
+                  // Show success dialog
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => AlertDialog(
+                      title: const Text("Registration Successful"),
+                      content: Text(response['message'] ?? "Your account is pending approval."),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                             // Go back to Login
+                             Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (context) => const Information()),
+                              (route) => false,
+                            );
+                          },
+                          child: const Text("OK"),
+                        ),
+                      ],
+                    ),
+                  );
+
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: Colors.red,
+                      content: Text("Registration Failed: ${e.toString()}"),
+                    ),
+                  );
+                }
+/*
                 Database db = Database();
                 await db.login();
                 await db.saveAccountType(widget.accountType);
@@ -369,6 +428,7 @@ class _HomescState extends State<homesc> {
                     ),
                   );
                 }
+*/
               },
               child: const Text(
                 "Sign up",
