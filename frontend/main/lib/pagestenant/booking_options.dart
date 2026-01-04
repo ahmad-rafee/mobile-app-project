@@ -17,7 +17,7 @@ class _BookingOptionsScreenState extends State<BookingOptionsScreen> {
   final List<String> _options = ['Property Tour', 'Real Estate'];
   String? _selectedOption = 'Property Tour';
 
-  void _navigateToNextScreen() {
+  void _navigateToNextScreen() async {
     if (_selectedOption == null) return;
 
     if (_selectedOption == 'Property Tour') {
@@ -28,27 +28,52 @@ class _BookingOptionsScreenState extends State<BookingOptionsScreen> {
         ),
       );
     } else if (_selectedOption == 'Real Estate') {
-      // تجهيز كائن الحجز
-      final Apartment realEstateBooking = Apartment(
-        id: widget.apartment.id,
-        ownerId: widget.apartment.ownerId,
-        title: widget.apartment.title, 
-        governorate: widget.apartment.governorate,
-        city: widget.apartment.city,
-        price: widget.apartment.price,
-        area: widget.apartment.area,
-        rooms: widget.apartment.rooms,
-        images: widget.apartment.images,
-        description: widget.apartment.description,
+      // Pick Date Range
+      final DateTimeRange? picked = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        builder: (context, child) {
+          return Theme(
+            data: ThemeData.light().copyWith(
+              primaryColor: Colors.blue,
+              colorScheme: const ColorScheme.light(primary: Colors.blue),
+              buttonTheme: const ButtonThemeData(textTheme: ButtonTextTheme.primary),
+            ),
+            child: child!,
+          );
+        },
       );
-      
-      // الانتقال لشاشة المراجعة أولاً كما في الصورة
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ReviewSummaryScreen(apartmentData: realEstateBooking),
-        ),
-      );
+
+      if (picked != null) {
+        // Prepare Object
+        final Apartment realEstateBooking = Apartment(
+          id: widget.apartment.id,
+          ownerId: widget.apartment.ownerId,
+          title: widget.apartment.title, 
+          governorate: widget.apartment.governorate,
+          city: widget.apartment.city,
+          price: widget.apartment.price,
+          area: widget.apartment.area,
+          rooms: widget.apartment.rooms,
+          images: widget.apartment.images,
+          description: widget.apartment.description,
+          // Store selected dates in a way we can retrieve later. 
+          // Since Apartment model might not have startDate/endDate fields, we can use selectedTime as a hack or just pass it via constructor wrapper if we could.
+          // Or strictly for this flow, we will modify the Apartment class via copyWith or dynamic field if simpler.
+          // Better: Pass these dates to ReviewSummaryScreen as separate arguments. 
+          // However, ReviewSummaryScreen expects 'apartmentData'.
+          // Let's attach them to 'selectedTime' string manually for now: "YYYY-MM-DD|YYYY-MM-DD"
+          selectedTime: "${picked.start.toIso8601String().split('T')[0]}|${picked.end.toIso8601String().split('T')[0]}",
+        );
+        
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ReviewSummaryScreen(apartmentData: realEstateBooking),
+          ),
+        );
+      }
     }
   }
 

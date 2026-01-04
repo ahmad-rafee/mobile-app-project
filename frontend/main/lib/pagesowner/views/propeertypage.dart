@@ -1,9 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:main/apiser.dart';
 
-class PropertiesPage extends StatelessWidget {
+class PropertiesPage extends StatefulWidget {
   const PropertiesPage({super.key});
 
+  @override
+  State<PropertiesPage> createState() => _PropertiesPageState();
+}
+
+class _PropertiesPageState extends State<PropertiesPage> {
   final Color primaryBlue = const Color(0xFF1E88E5);
+  late Future<List<dynamic>> _apartmentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _apartmentsFuture = ApiService.getMyApartments();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,21 +24,40 @@ class PropertiesPage extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.grey.shade200,
-
         title: const Text('My Properties'),
         centerTitle: true,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 5,
-        itemBuilder: (context, index) {
-          return _propertyCard();
-        },
+      body: FutureBuilder<List<dynamic>>(
+        future: _apartmentsFuture,
+        builder: (context, snapshot) {
+           if (snapshot.connectionState == ConnectionState.waiting) {
+             return const Center(child: CircularProgressIndicator());
+           } else if (snapshot.hasError) {
+             return Center(child: Text("Error: ${snapshot.error}"));
+           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+             return const Center(child: Text("No properties found. Add one!"));
+           }
+
+           final apartments = snapshot.data!;
+           return ListView.builder(
+             padding: const EdgeInsets.all(16),
+             itemCount: apartments.length,
+             itemBuilder: (context, index) {
+               return _propertyCard(apartments[index]);
+             },
+           );
+        }
       ),
     );
   }
 
-  Widget _propertyCard() {
+  Widget _propertyCard(dynamic apartment) {
+    // Handling images
+    String? imageUrl;
+    if (apartment['images'] != null && (apartment['images'] as List).isNotEmpty) {
+       imageUrl = "${ApiService.storageBaseUrl}${apartment['images'][0]['path']}";
+    }
+
     return Card(color: Colors.grey[200],
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 4,
@@ -40,22 +72,31 @@ class PropertiesPage extends StatelessWidget {
               decoration: BoxDecoration(
                 color: primaryBlue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
+                image: imageUrl != null ? DecorationImage(
+                  image: NetworkImage(imageUrl),
+                  fit: BoxFit.cover,
+                ) : null,
               ),
-              child: Icon(Icons.apartment, color: primaryBlue, size: 32),
+              child: imageUrl == null ? Icon(Icons.apartment, color: primaryBlue, size: 32) : null,
             ),
             const SizedBox(width: 16),
-            const Expanded(
+             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Luxury Apartment',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    apartment['title'] ?? 'Untitled Property',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 6),
+                  const SizedBox(height: 6),
                   Text(
-                    'Damascus • 3 Rooms',
-                    style: TextStyle(color: Colors.black54),
+                    '${apartment['city'] ?? 'City'} • ${apartment['rooms'] ?? 0} Rooms',
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                   const SizedBox(height: 4),
+                   Text(
+                    '\$${apartment['price'] ?? 0}',
+                    style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),

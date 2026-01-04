@@ -49,6 +49,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/apartments', [ApartmentController::class, 'store']);
     Route::put('/apartments/{id}', [ApartmentController::class, 'update']);
     Route::delete('/apartments/{id}', [ApartmentController::class, 'destroy']);
+    Route::get('/my-apartments', [ApartmentController::class, 'myApartments']); // New Owner Route
+
+    Route::get('/owner-bookings', [BookingController::class, 'ownerBookings']); // New Owner Route
+    Route::get('/dashboard-stats', [AuthController::class, 'dashboardStats']); // New Dashboard Route
 
     Route::get('/apartments/{id}', [ApartmentController::class, 'show']);
 
@@ -66,7 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notification', [NotificationController::class, 'getNotifications']);
     Route::post('/notification/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::delete('/notification/{id}', [NotificationController::class, 'deleteNotification']);
-    Route::post('/fcm-token',[FcmTokenController::class,'store']);
+    Route::post('/fcm-token', [FcmTokenController::class, 'store']);
 });
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {

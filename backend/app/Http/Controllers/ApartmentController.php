@@ -67,6 +67,19 @@ class ApartmentController extends Controller
         ], 201);
     }
 
+    public function myApartments(Request $request)
+    {
+        $apartments = Apartment::where('owner_id', $request->user()->id)
+            ->with('images')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $apartments
+        ], 200);
+    }
+
     public function update(Request $request, $id)
     {
         $apartment = Apartment::findOrFail($id);

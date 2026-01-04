@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:main/chatModel/User_model.dart';
 import 'package:main/database.dart';
 import 'package:main/information.dart';
-import 'package:main/pagesowner/controller/dashboar.dart';
+import 'package:main/apiser.dart';
 import 'package:main/pagesowner/controller/dashboar.dart';
 import 'package:main/pagesowner/views/about.dart';
 import 'package:main/pagesowner/views/addpage.dart';
@@ -10,6 +10,7 @@ import 'package:main/pagesowner/views/meassage.dart';
 import 'package:main/pagesowner/views/notiowner.dart';
 import 'package:main/pagesowner/views/profile.dart';
 import 'package:main/pagesowner/views/propeertypage.dart';
+import 'package:main/pagesowner/views/bookingview.dart';
 
 class DashboardView extends StatefulWidget {
   final User_model? user;
@@ -69,7 +70,13 @@ class _DashboardViewState extends State<DashboardView> {
         controller: controller,
         primaryBlue: primaryBlue,
         lightBlue: lightBlue,
-        onNavigate: (index) => setState(() => currentIndex = index),
+        onNavigate: (index) {
+          if (index == 4) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const BookingsView()));
+          } else {
+            setState(() => currentIndex = index);
+          }
+        },
       ),
       const PropertiesPage(),
       const AddPropertyPage(),
@@ -141,28 +148,45 @@ class _DashboardViewState extends State<DashboardView> {
                 colors: [primaryBlue, primaryBlue.withOpacity(0.85)],
               ),
             ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person, size: 30, color: Colors.blue),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'Owner Name',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'owner@gmail.com',
-                  style: TextStyle(color: Colors.white70),
-                ),
-              ],
+            child: FutureBuilder<Map<String, dynamic>>(
+              future: ApiService.getProfile(),
+              builder: (context, snapshot) {
+                String name = "Loading...";
+                String phone = "";
+                
+                if (snapshot.hasData) {
+                  final u = snapshot.data!['user'];
+                  name = "${u['first_name']} ${u['last_name']}";
+                  phone = u['phone'] ?? "";
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircleAvatar(
+                      radius: 28,
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.person, size: 30, color: Colors.blue),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      phone,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
           _drawerItem(Icons.person_outline, 'Profile', () {
@@ -308,17 +332,72 @@ class _DashboardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        _header(),
-        const SizedBox(height: 24),
-        _stats(),
-        const SizedBox(height: 30),
-        _insights(),
-        const SizedBox(height: 32),
-        _recentActivity(),
-      ],
+    return FutureBuilder<Map<String, dynamic>>(
+      future: ApiService.getDashboardStats(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+           return const Center(child: CircularProgressIndicator());
+        } 
+        
+        final data = snapshot.hasData ? snapshot.data!['data'] : null;
+        if (snapshot.hasData) {
+          debugPrint("DASHBOARD RAW DATA: ${snapshot.data}");
+          debugPrint("PARSED DATA: $data");
+        }
+        
+        final totalProperties = data != null ? data['total_properties'] : 0;
+        final totalBookings = data != null ? data['total_bookings'] : 0; // Fixed key if needed
+        final totalEarnings = data != null ? data['total_earnings'] : 0;
+        final messagesCount = data != null ? data['messages_count'] : 0;
+        final recentActivity = data != null ? data['recent_activity'] : [];
+
+        final stats = [
+          _Stat(
+            'Properties',
+            totalProperties.toString(),
+            Icons.apartment_outlined,
+            1,
+            const Color(0xFF1E88E5),
+          ),
+          _Stat(
+            'Bookings',
+            totalBookings.toString(),
+            Icons.book_online_outlined,
+            4, 
+            const Color(0xFF43A047),
+          ),
+          _Stat(
+            'Earnings',
+            '\$$totalEarnings',
+            Icons.attach_money_outlined,
+            2,
+            const Color(0xFF8E24AA),
+          ),
+          _Stat(
+            'Messages',
+            messagesCount.toString(),
+            Icons.message_outlined,
+            3,
+            const Color(0xFFF4511E),
+          ),
+        ];
+
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            _header(),
+            const SizedBox(height: 24),
+            _statsGrid(stats),
+            const SizedBox(height: 30),
+            _insights(
+              double.tryParse(totalEarnings.toString()) ?? 0.0, 
+              int.tryParse(totalProperties.toString()) ?? 0
+            ),
+            const SizedBox(height: 32),
+            _recentActivityList(recentActivity),
+          ],
+        );
+      }
     );
   }
 
@@ -367,38 +446,7 @@ class _DashboardBody extends StatelessWidget {
     );
   }
 
-  Widget _stats() {
-    final stats = [
-      _Stat(
-        'Properties',
-        controller.totalProperties().toString(),
-        Icons.apartment_outlined,
-        1,
-        const Color(0xFF1E88E5),
-      ),
-      _Stat(
-        'Bookings',
-        controller.totalBookings().toString(),
-        Icons.book_online_outlined,
-        1,
-        const Color(0xFF43A047),
-      ),
-      _Stat(
-        'Earnings',
-        '\$${controller.totalEarnings()}',
-        Icons.attach_money_outlined,
-        2,
-        const Color(0xFF8E24AA),
-      ),
-      _Stat(
-        'Messages',
-        '12',
-        Icons.message_outlined,
-        3,
-        const Color(0xFFF4511E),
-      ),
-    ];
-
+  Widget _statsGrid(List<_Stat> stats) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -453,13 +501,12 @@ class _DashboardBody extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 14),
-
             TweenAnimationBuilder<int>(
               tween: IntTween(
                 begin: 0,
-                end: int.parse(s.value.replaceAll(RegExp(r'[^0-9]'), '')),
+                // Robust parsing
+                end: int.tryParse(s.value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
               ),
               duration: const Duration(milliseconds: 900),
               builder: (context, value, _) {
@@ -472,30 +519,32 @@ class _DashboardBody extends StatelessWidget {
                 );
               },
             ),
-
-            const SizedBox(height: 8),
-
-            Row(
-              children: [
-                Icon(Icons.trending_up, size: 16, color: Colors.green),
-                const SizedBox(width: 4),
-                Text(
-                  '+12% this month',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.green.shade700,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+            // Removed hardcoded "12% this month" row as it was static data
           ],
         ),
       ),
     );
   }
 
-  Widget _insights() {
+  Widget _insights(double earnings, int properties) {
+    String message;
+    IconData icon;
+    Color color;
+
+    if (earnings > 0) {
+      message = "Great job! You've earned \$$earnings so far. Keep managing your bookings to maximize profit.";
+      icon = Icons.trending_up;
+      color = Colors.green;
+    } else if (properties > 0) {
+      message = "Your properties are live. Promote them to start earning!";
+      icon = Icons.lightbulb_outline;
+      color = Colors.orange;
+    } else {
+      message = "Start by adding your first property to reach potential tenants.";
+      icon = Icons.add_home_outlined;
+      color = Colors.blue;
+    }
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -511,11 +560,11 @@ class _DashboardBody extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.lightbulb_outline, color: Colors.redAccent, size: 26),
+          Icon(icon, color: color, size: 26),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
-              "Your earnings increased compared to last month. Consider adding more properties to maximize profit.",
+              message,
               style: const TextStyle(fontSize: 14, height: 1.4),
             ),
           ),
@@ -524,7 +573,21 @@ class _DashboardBody extends StatelessWidget {
     );
   }
 
-  Widget _recentActivity() {
+  Widget _recentActivityList(List<dynamic> activities) {
+    if (activities is! List || activities.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text(
+            "Recent Activity",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          SizedBox(height: 12),
+          Text("No recent activity."),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -533,24 +596,14 @@ class _DashboardBody extends StatelessWidget {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
-        _activityItem(
-          Icons.apartment_outlined,
-          'New property added',
-          'Apartment in Dubai Marina',
-          Colors.blue,
-        ),
-        _activityItem(
-          Icons.book_online_outlined,
-          'New booking received',
-          'Booking #2341',
-          Colors.green,
-        ),
-        _activityItem(
-          Icons.attach_money_outlined,
-          'Payment completed',
-          '\$1,200 credited',
-          Colors.purpleAccent,
-        ),
+        ...activities.map((activity) {
+          return _activityItem(
+            Icons.book_online_outlined, 
+            activity['title'] ?? 'Activity',
+            activity['subtitle'] ?? '',
+            Colors.green,
+          );
+        }).toList(),
       ],
     );
   }

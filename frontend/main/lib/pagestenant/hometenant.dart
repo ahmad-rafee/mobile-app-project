@@ -180,15 +180,51 @@ class _hometenantState extends State<hometenant> {
     );
   }
 
+  final Color primaryBlue = const Color(0xFF1E88E5);
+
+  ListTile _drawerItem(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: primaryBlue),
+      title: Text(title),
+      onTap: onTap,
+    );
+  }
+
   List<dynamic> allHouses = [];
   List filteredHouses = [];
   bool isLoading = true;
+
+  // User Profile State
+  String? firstName;
+  String? lastName;
+  String? phone;
+  String? profileImage;
 
   @override
   void initState() {
     super.initState();
     fetchApartments();
+    fetchUserProfile();
   }
+
+  Future<void> fetchUserProfile() async {
+    try {
+      final response = await ApiService.getProfile();
+      if (response['success'] == true && response['user'] != null) {
+        setState(() {
+          firstName = response['user']['first_name'];
+          lastName = response['user']['last_name'];
+          phone = response['user']['phone'];
+          profileImage = response['user']['profile_image'];
+        });
+      }
+    } catch (e) {
+      print("Error fetching profile: $e");
+    }
+  }
+
+  // Near You Properties
+  List<Property> nearYouProperties = [];
 
   Future<void> fetchApartments() async {
     try {
@@ -209,10 +245,25 @@ class _hometenantState extends State<hometenant> {
             "area": double.tryParse(apt['area'].toString()) ?? 0.0,
             "rooms": int.tryParse(apt['rooms'].toString()) ?? 0,
             "isSaved": false,
-            "description": apt['description'] // Store description
+            "description": apt['description']
           };
         }).toList();
-        
+
+        // Populate Near You properties (Converted to Property object)
+        nearYouProperties = apartments.map((apt) {
+           String imageUrl = "images/build1.png";
+          if (apt['images'] != null && (apt['images'] as List).isNotEmpty) {
+             imageUrl = "${ApiService.storageBaseUrl}${apt['images'][0]['path']}";
+          }
+          return Property(
+            title: apt['title'] ?? "Apartment",
+            price: "\$${apt['price']}", // Format price
+            location: "${apt['governorate']}/${apt['city']}",
+            imageUrl: imageUrl,
+            isSaved: false,
+          );
+        }).toList();
+
         filterData("Recommended");
         isLoading = false;
       });
@@ -253,7 +304,7 @@ class _hometenantState extends State<hometenant> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.grey[200],
-        title: Text("Welcome Tenant"),
+        title: Text("Welcome ${firstName ?? 'Tenant'}"),
       ),
 
       drawer: Drawer(
@@ -268,22 +319,36 @@ class _hometenantState extends State<hometenant> {
                   Container(
                     child: ClipRRect(
                       borderRadius: BorderRadiusGeometry.circular(70),
-                      child: Image.asset(
-                        "images/screen2(2).png",
-                        width: 90,
-                        height: 90,
-                        fit: BoxFit.cover,
-                      ),
+                      child: profileImage != null
+                          ? Image.network(
+                              profileImage!,
+                              width: 90,
+                              height: 90,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Image.asset(
+                                "images/screen2(2).png",
+                                width: 90,
+                                height: 90,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Image.asset(
+                              "images/screen2(2).png",
+                              width: 90,
+                              height: 90,
+                              fit: BoxFit.cover,
+                            ),
                     ),
                   ),
                   Expanded(
                     child: ListTile(
                       title: Text(
-                        "Adolf Hitler",
+                        firstName != null ? "$firstName $lastName" : "Guest",
                         style: TextStyle(fontSize: 15),
                       ),
                       subtitle: Text(
-                        "adolf-Hit-1889@gmail.com",
+                        phone ?? "No phone number",
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ),
@@ -411,7 +476,9 @@ class _hometenantState extends State<hometenant> {
                   ),
                   CircleAvatar(
                     radius: 25,
-                    backgroundImage: AssetImage("images/hitler.png"),
+                    backgroundImage: profileImage != null
+                        ? NetworkImage(profileImage!)
+                        : AssetImage("images/hitler.png") as ImageProvider,
                   ),
                 ],
               ),
@@ -636,12 +703,14 @@ class _hometenantState extends State<hometenant> {
             const SizedBox(height: 25),
             Container(
               height: 420,
-              child: PageView.builder(
+              child: nearYouProperties.isEmpty
+                ? const Center(child: Text("No properties near you"))
+                : PageView.builder(
                 itemBuilder: (context, index) {
-                  return PropertyCard(property: properties[index]);
+                  return PropertyCard(property: nearYouProperties[index]);
                 },
                 scrollDirection: Axis.vertical,
-                itemCount: properties.length,
+                itemCount: nearYouProperties.length,
               ),
             ),
           ],

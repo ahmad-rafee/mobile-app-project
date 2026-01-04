@@ -48,6 +48,11 @@ class Database {
     return prefs.getBool(FirstT) ?? true;
   }
 
+  Future<void> setFirstTime(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(FirstT, value);
+  }
+
   Future<void> isNotFirst() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(FirstT, false);

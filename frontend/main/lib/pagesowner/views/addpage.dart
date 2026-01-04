@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:main/apiser.dart';
 
 class AddPropertyPage extends StatefulWidget {
   const AddPropertyPage({super.key});
@@ -13,8 +14,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final Color primaryBlue = const Color(0xFF1E88E5);
 
   final TextEditingController nameController = TextEditingController();
-  final TextEditingController locationController = TextEditingController();
+  final TextEditingController governorateController = TextEditingController();
+  final TextEditingController cityController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
+  final TextEditingController areaController = TextEditingController(); // Added area
   final TextEditingController roomsController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController featureController = TextEditingController();
@@ -94,11 +97,19 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             const SizedBox(height: 20),
 
             _inputField('Property Name', controller: nameController),
-            _inputField('Location', controller: locationController),
-            _inputField(
-              'Price per Month',
-              controller: priceController,
-              keyboard: TextInputType.number,
+            Row(
+              children: [
+                Expanded(child: _inputField('Governorate', controller: governorateController)),
+                const SizedBox(width: 10),
+                Expanded(child: _inputField('City', controller: cityController)),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(child: _inputField('Price', controller: priceController, keyboard: TextInputType.number)),
+                const SizedBox(width: 10),
+                Expanded(child: _inputField('Area (sqm)', controller: areaController, keyboard: TextInputType.number)),
+              ],
             ),
             _inputField(
               'Number of Rooms',
@@ -188,14 +199,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             SizedBox(
               width: double.infinity,
               height: 52,
-              child: ElevatedButton(
+              child: _isLoading ? const Center(child: CircularProgressIndicator()) : ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryBlue,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: () {},
+                onPressed: _saveProperty,
                 child: const Text(
                   'Save Property',
                   style: TextStyle(fontSize: 16, color: Colors.white),
@@ -206,6 +217,90 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         ),
       ),
     );
+  }
+
+  bool _isLoading = false;
+
+  Future<void> _saveProperty() async {
+    print("Submit button pressed");
+
+    final title = nameController.text.trim();
+    final gov = governorateController.text.trim();
+    final city = cityController.text.trim();
+    final priceStr = priceController.text.trim();
+    final areaStr = areaController.text.trim();
+    final roomsStr = roomsController.text.trim();
+
+    if (title.isEmpty || gov.isEmpty || city.isEmpty || priceStr.isEmpty || roomsStr.isEmpty || pickedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all required fields and add an image')),
+      );
+      return;
+    }
+
+    // Validate numbers
+    final double? price = double.tryParse(priceStr.replaceAll(',', ''));
+    final double? area = double.tryParse(areaStr.replaceAll(',', ''));
+    final int? rooms = int.tryParse(roomsStr.replaceAll(',', ''));
+
+    if (price == null || price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid price')));
+      return;
+    }
+    if (area != null && area < 0) { // Area is optional in backend but good to validate
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid area')));
+        return;
+    }
+    if (rooms != null && rooms < 0) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid rooms')));
+         return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      String fullDescription = descriptionController.text.trim();
+      if (selectedFeatures.isNotEmpty) {
+        fullDescription += "\n\nFeatures: ${selectedFeatures.join(', ')}";
+      }
+
+      print("Sending property: $title, $gov, $city, $price");
+
+      final File imageFile = File(pickedImage!.path);
+      if (!await imageFile.exists()) {
+        throw Exception("Image file not found at ${pickedImage!.path}");
+      }
+
+      final response = await ApiService.createApartment(
+        title: title,
+        description: fullDescription,
+        governorate: gov,
+        city: city,
+        price: price, // sending valid double
+        area: area ?? 0,
+        rooms: rooms ?? 0,
+        images: [imageFile],
+      );
+
+      print("Property created: $response");
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Property Added Successfully!')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e, stackTrace) {
+      print("Error creating property: $e");
+      print(stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Widget _inputField(

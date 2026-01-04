@@ -202,15 +202,18 @@ class _MyLoginPageState extends State<MyLoginPage> {
                     );
                     return;
                   }
-                  await Database().login(); // Mark not first time/logged in locally
-                  
                   try {
                     final response = await ApiService.login(
-                      phone: username, // using username field as phone
+                      phone: username, 
                       password: password,
                     );
 
-                    final role = response['user']['role'];
+                    await Database().login(); // Mark logged in locally ONLY on success
+
+                    String role = "user";
+                    if (response['user'] != null && response['user']['role'] != null) {
+                        role = response['user']['role'];
+                    }
                     await Database().saveAccountType(role);
                     
                     if (role == 'owner') {

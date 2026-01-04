@@ -1,69 +1,90 @@
 import 'package:flutter/material.dart';
+import 'package:main/apiser.dart';
 
-class MyBookingsPage extends StatelessWidget {
+class MyBookingsPage extends StatefulWidget {
   const MyBookingsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> bookings = [
-      {
-        "title": "Luxury Villa",
-        "status": "Pending",
-        "date": "2024-05-20",
-        "price": "500",
-      },
-      {
-        "title": "Red Cottage",
-        "status": "Accepted",
-        "date": "2024-06-01",
-        "price": "220",
-      },
-    ];
+  State<MyBookingsPage> createState() => _MyBookingsPageState();
+}
 
-    return Scaffold(backgroundColor: Colors.white,
+class _MyBookingsPageState extends State<MyBookingsPage> {
+  List<dynamic> bookings = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchBookings();
+  }
+
+  Future<void> fetchBookings() async {
+    try {
+      final data = await ApiService.getMyBookings();
+      setState(() {
+        bookings = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching bookings: $e");
+      setState(() => isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text("My Bookings"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
       ),
-      body: ListView.builder(
-        itemCount: bookings.length,
-        itemBuilder: (context, index) {
-          final item = bookings[index];
-          return Card(color: Colors.grey[200],
-            margin: const EdgeInsets.all(10),
-            child: ListTile(
-              leading: const Icon(Icons.home_work, color: Colors.blue),
-              title: Text(
-                item['title'],
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text("Date: ${item['date']}"),
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "\$${item['price']}",
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    item['status'],
-                    style: TextStyle(
-                      color: item['status'] == "Accepted"
-                          ? Colors.green
-                          : Colors.orange,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : bookings.isEmpty
+              ? const Center(child: Text("No bookings found."))
+              : ListView.builder(
+                  itemCount: bookings.length,
+                  itemBuilder: (context, index) {
+                    final item = bookings[index];
+                    final apartment = item['apartment'] ?? {};
+                    return Card(
+                      color: Colors.grey[200],
+                      margin: const EdgeInsets.all(10),
+                      child: ListTile(
+                        leading:
+                            const Icon(Icons.home_work, color: Colors.blue),
+                        title: Text(
+                          apartment['title'] ?? 'Unknown Property',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text("Date: ${item['created_at'].toString().split('T')[0]}"),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "\$${apartment['price'] ?? 0}",
+                              style: const TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              item['status'] ?? 'pending',
+                              style: TextStyle(
+                                color: item['status'] == "approved"
+                                    ? Colors.green
+                                    : Colors.orange,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

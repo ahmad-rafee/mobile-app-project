@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:main/apiser.dart';
 
 class OwnerProfilePage extends StatefulWidget {
   const OwnerProfilePage({super.key});
@@ -10,30 +11,41 @@ class OwnerProfilePage extends StatefulWidget {
 }
 
 class _OwnerProfilePageState extends State<OwnerProfilePage> {
-  String userName = "Mohammad";
-  String userEmail = "owner@gmail.com";
-  String userPhone = "+981454621";
-  String userAddress = "Syria, Masyaf";
+  String userName = "Loading...";
+  String userEmail = "Loading...";
+  String userPhone = "Loading...";
+  String userAddress = "Damascus, Syria"; // Placeholder
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    try {
+      final data = await ApiService.getProfile();
+      final user = data['user'];
+      setState(() {
+        userName = "${user['first_name']} ${user['last_name']}";
+        userEmail = user['email'];
+        userPhone = user['phone_number'];
+      });
+    } catch (e) {
+      // Handle error
+    }
+  }
 
   void _showEditDialog() {
-    TextEditingController nameController = TextEditingController(
-      text: userName,
-    );
-    TextEditingController emailController = TextEditingController(
-      text: userEmail,
-    );
-    TextEditingController phoneController = TextEditingController(
-      text: userPhone,
-    );
-    TextEditingController addressController = TextEditingController(
-      text: userAddress,
-    );
+    TextEditingController nameController = TextEditingController(text: userName);
+    TextEditingController emailController = TextEditingController(text: userEmail);
+    TextEditingController phoneController = TextEditingController(text: userPhone);
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(backgroundColor: Colors.grey[300],
+        return AlertDialog(
+          backgroundColor: Colors.grey[300],
           title: const Text("Edit Profile"),
           content: SingleChildScrollView(
             child: Column(
@@ -45,15 +57,12 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
                 ),
                 TextField(
                   controller: emailController,
-                  decoration: const InputDecoration(labelText: "Email"),
+                  decoration: const InputDecoration(labelText: "Email (Read-only)"),
+                  enabled: false,
                 ),
                 TextField(
                   controller: phoneController,
                   decoration: const InputDecoration(labelText: "Phone"),
-                ),
-                TextField(
-                  controller: addressController,
-                  decoration: const InputDecoration(labelText: "Address"),
                 ),
               ],
             ),
@@ -61,19 +70,30 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
           actions: [
             MaterialButton(
               onPressed: () => Navigator.pop(context),
-              child:  Text("Cancel",style: TextStyle(color: Colors.blueAccent)),
+              child: const Text("Cancel", style: TextStyle(color: Colors.blueAccent)),
             ),
             MaterialButton(
-              onPressed: () {
-                setState(() {
-                  userName = nameController.text;
-                  userEmail = emailController.text;
-                  userPhone = phoneController.text;
-                  userAddress = addressController.text;
-                });
-                Navigator.pop(context);
+              onPressed: () async {
+                final nameParts = nameController.text.trim().split(' ');
+                final fName = nameParts.isNotEmpty ? nameParts.first : "";
+                final lName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : "";
+
+                try {
+                  await ApiService.updateProfile(
+                    firstName: fName,
+                    lastName: lName,
+                    // Email cannot be updated via this endpoint
+                    phone: phoneController.text,
+                  );
+                  _fetchProfile();
+                  if (context.mounted) Navigator.pop(context);
+                } catch (e) {
+                  if (context.mounted) {
+                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                  }
+                }
               },
-              child:  Text("Save",style: TextStyle(color: Colors.red)),
+              child: const Text("Save", style: TextStyle(color: Colors.red)),
             ),
           ],
         );
