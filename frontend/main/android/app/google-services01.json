@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "249304786120",
-    "project_id": "realestate-f21e8",
-    "storage_bucket": "realestate-f21e8.firebasestorage.app"
+    "project_number": "314714339450",
+    "project_id": "apartments-app-1a4ee",
+    "storage_bucket": "apartments-app-1a4ee.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:249304786120:android:d280c32930ab284788b1fd",
+        "mobilesdk_app_id": "1:314714339450:android:e951540657da0d2f9b63c3",
         "android_client_info": {
-          "package_name": "com.apartments"
+          "package_name": "com.example.main"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBJRo837_Nn6rbtAZkiiMwUKnT7IVFXXtg"
+          "current_key": "AIzaSyDONqrz89XOuaXDfxkCplRmGypxZP8g3NA"
         }
       ],
       "services": {

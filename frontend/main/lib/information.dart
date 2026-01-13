@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:main/gridv.dart';
 import 'package:main/homesc.dart';
 import 'package:main/signup.dart';
@@ -216,6 +217,16 @@ class _MyLoginPageState extends State<MyLoginPage> {
                         role = response['user']['role'];
                     }
                     await Database().saveAccountType(role);
+
+                    // Send FCM token to backend for push notifications
+                    try {
+                      final fcmToken = await FirebaseMessaging.instance.getToken();
+                      if (fcmToken != null) {
+                        await ApiService.storeFcmToken(fcmToken);
+                      }
+                    } catch (e) {
+                      print("Failed to send FCM token: $e");
+                    }
                     
                     if (role == 'admin') {
                        Navigator.pushReplacement(

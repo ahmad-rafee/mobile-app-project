@@ -3,10 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
+use App\Models\FcmToken;
+use App\Services\FcmService;
 use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
+    protected $fcmService;
+
+    public function __construct(FcmService $fcmService)
+    {
+        $this->fcmService = $fcmService;
+    }
+
     public function sendNotification(Request $request)
     {
         $request->validate([
@@ -22,9 +31,27 @@ class NotificationController extends Controller
             'is_read' => false
         ]);
 
+        // Send FCM push notification to all user's devices
+        $fcmTokens = FcmToken::where('user_id', $request->user_id)->get();
+        $pushSent = false;
+        foreach ($fcmTokens as $token) {
+            try {
+                $this->fcmService->sendNotification(
+                    $token->fcm_token,
+                    $request->title,
+                    $request->body ?? ''
+                );
+                $pushSent = true;
+            } catch (\Exception $e) {
+                // Log error but continue
+                \Log::warning("FCM send failed for token {$token->id}: " . $e->getMessage());
+            }
+        }
+
         return response()->json([
             'message' => __('messages.notification_sent'),
-            'data'    => $notification
+            'data'    => $notification,
+            'push_sent' => $pushSent
         ], 201);
     }
 
