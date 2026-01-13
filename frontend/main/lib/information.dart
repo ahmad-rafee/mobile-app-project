@@ -5,6 +5,7 @@ import 'package:main/signup.dart';
 import 'package:main/apiser.dart';
 import 'package:main/tenant.dart';
 import 'package:main/pagesowner/views/dashboardview.dart';
+import 'package:main/pagesadmin/admin_dashboard.dart';
 
 import 'database.dart';
 //import 'package:main/HomeScreen.dart';
@@ -216,7 +217,12 @@ class _MyLoginPageState extends State<MyLoginPage> {
                     }
                     await Database().saveAccountType(role);
                     
-                    if (role == 'owner') {
+                    if (role == 'admin') {
+                       Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => AdminDashboard()),
+                      );
+                    } else if (role == 'owner') {
                        Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => DashboardView()),

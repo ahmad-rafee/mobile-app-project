@@ -215,7 +215,10 @@ class _hometenantState extends State<hometenant> {
           firstName = response['user']['first_name'];
           lastName = response['user']['last_name'];
           phone = response['user']['phone'];
-          profileImage = response['user']['profile_image'];
+          final imgPath = response['user']['profile_image'];
+          if (imgPath != null && imgPath.isNotEmpty) {
+            profileImage = "${ApiService.storageBaseUrl}$imgPath";
+          }
         });
       }
     } catch (e) {
@@ -419,8 +422,11 @@ class _hometenantState extends State<hometenant> {
                           ),
                           TextButton(
                             onPressed: () async {
-                              Database db = Database();
-                              await db.logout();
+                              try {
+                                await ApiService.logout();
+                              } catch (e) {
+                                print("Logout API error: $e");
+                              }
 
                               Navigator.of(context).pop();
 

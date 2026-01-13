@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:main/chatModel/User_model.dart';
 import 'package:main/database.dart';
@@ -21,10 +22,12 @@ class DashboardView extends StatefulWidget {
   State<DashboardView> createState() => _DashboardViewState();
 }
 
-class _DashboardViewState extends State<DashboardView> {
+class _DashboardViewState extends State<DashboardView> with WidgetsBindingObserver {
   final DashboardController controller = DashboardController();
 
   int currentIndex = 0;
+  Timer? _notificationTimer;
+  int _unreadCount = 0;
 
   final Color primaryBlue = const Color(0xFF1E88E5);
   final Color lightBlue = const Color(0xFFE3F2FD);
@@ -65,6 +68,9 @@ class _DashboardViewState extends State<DashboardView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startNotificationPolling();
+    _fetchUnreadCount();
     pages = [
       _DashboardBody(
         controller: controller,
@@ -82,6 +88,44 @@ class _DashboardViewState extends State<DashboardView> {
       const AddPropertyPage(),
       const MessagesPage(),
     ];
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notificationTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startNotificationPolling();
+      _fetchUnreadCount();
+    } else if (state == AppLifecycleState.paused) {
+      _notificationTimer?.cancel();
+    }
+  }
+
+  void _startNotificationPolling() {
+    _notificationTimer?.cancel();
+    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _fetchUnreadCount();
+    });
+  }
+
+  Future<void> _fetchUnreadCount() async {
+    try {
+      final notifications = await ApiService.getNotifications();
+      final unread = notifications.where((n) => 
+        n['is_read'] == false || n['is_read'] == 0
+      ).length;
+      if (mounted) {
+        setState(() => _unreadCount = unread);
+      }
+    } catch (e) {
+      print("Error fetching notifications: $e");
+    }
   }
 
   @override

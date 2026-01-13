@@ -31,7 +31,10 @@ class _SetteingState extends State<Setteing> {
           firstName = response['user']['first_name'] ?? "";
           lastName = response['user']['last_name'] ?? "";
           userPhone = response['user']['phone'] ?? "";
-          profileImageUrl = response['user']['profile_image'];
+          final imgPath = response['user']['profile_image'];
+          if (imgPath != null && imgPath.isNotEmpty) {
+            profileImageUrl = "${ApiService.storageBaseUrl}$imgPath";
+          }
           isLoading = false;
         });
       }

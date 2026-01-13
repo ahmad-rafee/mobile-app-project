@@ -74,6 +74,10 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::get('/admin/dashboard-stats', [AdminController::class, 'dashboardStats']);
+    Route::get('/admin/users', [AdminController::class, 'allUsers']);
+    Route::get('/admin/apartments', [AdminController::class, 'allApartments']);
+
     Route::get('/admin/users/pending', [AdminController::class, 'pendingUsers']);
     Route::get('/admin/apartments/pending', [AdminController::class, 'pendingApartments']);
 
@@ -81,6 +85,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('/admin/apartments/{id}/reject', [AdminController::class, 'rejectApartment']);
 
     Route::post('/admin/users/{id}/approve', [AdminController::class, 'approveUser']);
+    Route::post('/admin/users/{id}/reject', [AdminController::class, 'rejectUser']);
     Route::delete('/admin/users/{id}', [AdminController::class, 'deleteUser']);
 
 });

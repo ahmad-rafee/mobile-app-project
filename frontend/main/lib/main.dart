@@ -7,8 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:main/pro1.dart';
 import 'package:main/tenant.dart';
 import 'package:main/pagesowner/views/dashboardview.dart';
-
-import 'package:firebase_core/firebase_core.dart';
+import 'package:main/pagesadmin/admin_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,7 +46,13 @@ class MyApp extends StatelessWidget {
     if (firstTime) {
       start = const Pro1();
     } else if (loggedIn) {
-      start = (accountType == "user") ? const tenant() : const DashboardView();
+      if (accountType == "admin") {
+        start = AdminDashboard();
+      } else if (accountType == "owner") {
+        start = const DashboardView();
+      } else {
+        start = const tenant();
+      }
     } else {
       start = const Information();
     }

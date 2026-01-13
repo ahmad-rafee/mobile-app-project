@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:main/apiser.dart';
-// import 'package:main/pagestenant/chat1.dart'; // You might need to update chat1.dart to accept conversation ID
+import 'package:main/pagestenant/chat1.dart';
+import 'package:main/database.dart';
 
 class Message extends StatefulWidget {
   const Message({super.key});
@@ -12,11 +13,26 @@ class Message extends StatefulWidget {
 class _MessageState extends State<Message> {
   List<dynamic> conversations = [];
   bool isLoading = true;
+  int? currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUser();
     fetchConversations();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      final profile = await ApiService.getProfile();
+      if (profile['user'] != null) {
+        setState(() {
+          currentUserId = profile['user']['id'];
+        });
+      }
+    } catch (e) {
+      print("Error loading user: $e");
+    }
   }
 
   Future<void> fetchConversations() async {
@@ -52,18 +68,25 @@ class _MessageState extends State<Message> {
                 itemCount: conversations.length,
                 itemBuilder: (context, index) {
                   final conv = conversations[index];
-                  // Parse conv data based on API response structure
-                  // Assuming structure like { id: 1, other_user: { name: "...", ... }, last_message: { ... } }
                   final otherUser = conv['other_user'] ?? {}; 
                   final lastMessage = conv['last_message'];
-                  String name = "${otherUser['first_name']} ${otherUser['last_name']}";
-                  String lastMsgText = lastMessage != null ? lastMessage['content'] : "No messages";
+                  String name = "${otherUser['first_name'] ?? ''} ${otherUser['last_name'] ?? ''}".trim();
+                  if (name.isEmpty) name = "User";
+                  String lastMsgText = lastMessage != null ? (lastMessage['message'] ?? "No messages") : "No messages";
                   
                   return _buildChatItem(context, name, lastMsgText, () {
-                    // Navigate to chat detail
-                    // Navigator.of(context).push(...) 
-                    // Note: Need to implement chat detail screen that uses API
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Chat detail not yet implemented")));
+                    if (currentUserId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => caht_1(
+                            conversationId: conv['id'],
+                            otherUserName: name,
+                            currentUserId: currentUserId!,
+                          ),
+                        ),
+                      );
+                    }
                   });
                 },
               ),

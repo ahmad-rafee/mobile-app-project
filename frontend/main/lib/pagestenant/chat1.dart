@@ -1,14 +1,19 @@
 import 'package:chat_bubbles/bubbles/bubble_special_three.dart';
 import 'package:flutter/material.dart';
-import 'package:main/chatcons.dart';
-import 'package:main/modelchat.dart';
-import 'package:main/chatModel/User_model.dart';
+import 'package:main/apiser.dart';
 import 'package:intl/intl.dart';
 
 class caht_1 extends StatefulWidget {
-  final User_model currentUser;
+  final int conversationId;
+  final String otherUserName;
+  final int currentUserId;
 
-  const caht_1({super.key, required this.currentUser});
+  const caht_1({
+    super.key, 
+    required this.conversationId,
+    required this.otherUserName,
+    required this.currentUserId,
+  });
 
   @override
   State<caht_1> createState() => _Caht_1State();
@@ -17,6 +22,28 @@ class caht_1 extends StatefulWidget {
 class _Caht_1State extends State<caht_1> {
   TextEditingController textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  List<dynamic> messages = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMessages();
+  }
+
+  Future<void> _fetchMessages() async {
+    try {
+      final data = await ApiService.getMessages(widget.conversationId.toString());
+      setState(() {
+        messages = data;
+        isLoading = false;
+      });
+      Future.delayed(const Duration(milliseconds: 100), () => _scrollToBottom());
+    } catch (e) {
+      print("Error fetching messages: $e");
+      setState(() => isLoading = false);
+    }
+  }
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
@@ -28,26 +55,22 @@ class _Caht_1State extends State<caht_1> {
     }
   }
 
-  Future<void> sendMessageToApi(String messageText) async {
-    setState(() {
-      Chat.add(
-        model(
-          text: messageText,
-          sender_name: widget.currentUser.name,
-          sender_id: widget.currentUser.id,
-          time: DateTime.now(),
-        ),
+  Future<void> _sendMessage(String messageText) async {
+    if (messageText.trim().isEmpty) return;
+    
+    try {
+      await ApiService.sendMessage(widget.conversationId.toString(), messageText);
+      textController.clear();
+      _fetchMessages();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to send: $e")),
       );
-    });
-    Future.delayed(const Duration(milliseconds: 100), () => _scrollToBottom());
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    String myName = widget.currentUser.name;
-    String otherUserName = widget.currentUser.name == "nader"
-        ? "Property Owner"
-        : "nader";
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -63,7 +86,7 @@ class _Caht_1State extends State<caht_1> {
 
             Expanded(
               child: Text(
-                otherUserName,
+                widget.otherUserName,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -86,48 +109,55 @@ class _Caht_1State extends State<caht_1> {
           Expanded(
             child: Container(
               color: Colors.white,
-              child: ListView.builder(
-                controller: _scrollController,
-                itemCount: Chat.length,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                itemBuilder: (_, index) {
-                  bool isMe = Chat[index].sender_name == myName;
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      controller: _scrollController,
+                      itemCount: messages.length,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      itemBuilder: (_, index) {
+                        final msg = messages[index];
+                        bool isMe = msg['sender_id'] == widget.currentUserId;
+                        DateTime? msgTime;
+                        try {
+                          msgTime = DateTime.parse(msg['created_at']);
+                        } catch (_) {}
 
-                  return Column(
-                    crossAxisAlignment: isMe
-                        ? CrossAxisAlignment.end
-                        : CrossAxisAlignment.start,
-                    children: [
-                      BubbleSpecialThree(
-                        isSender: isMe,
-                        text: Chat[index].text.toString(),
-                        color: isMe
-                            ? const Color(0xFF056EC5)
-                            : const Color(0xFFE8E8EE),
-                        tail: true,
-                        textStyle: TextStyle(
-                          color: isMe ? Colors.white : Colors.black,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.only(
-                          right: isMe ? 20 : 0,
-                          left: isMe ? 0 : 20,
-                          bottom: 5,
-                        ),
-                        child: Text(
-                          DateFormat('hh:mm a').format(Chat[index].time),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                        return Column(
+                          crossAxisAlignment: isMe
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
+                          children: [
+                            BubbleSpecialThree(
+                              isSender: isMe,
+                              text: msg['message']?.toString() ?? '',
+                              color: isMe
+                                  ? const Color(0xFF056EC5)
+                                  : const Color(0xFFE8E8EE),
+                              tail: true,
+                              textStyle: TextStyle(
+                                color: isMe ? Colors.white : Colors.black,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.only(
+                                right: isMe ? 20 : 0,
+                                left: isMe ? 0 : 20,
+                                bottom: 5,
+                              ),
+                              child: Text(
+                                msgTime != null ? DateFormat('hh:mm a').format(msgTime) : '',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
             ),
           ),
           _inputSection(),
@@ -167,8 +197,7 @@ class _Caht_1State extends State<caht_1> {
           IconButton(
             onPressed: () {
               if (textController.text.isNotEmpty) {
-                sendMessageToApi(textController.text);
-                textController.clear();
+                _sendMessage(textController.text);
               }
             },
             icon: const Icon(Icons.send, color: Color(0xFF056EC5)),

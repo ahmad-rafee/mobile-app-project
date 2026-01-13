@@ -59,6 +59,22 @@ class ApiService {
     }
   }
 
+  /// LOGOUT
+  static Future<void> logout() async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/logout"),
+      headers: await getHeaders(),
+    );
+
+    final db = Database();
+    await db.logout();
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Logout failed");
+    }
+  }
+
   /// LOGIN
   static Future<Map<String, dynamic>> login({
     required String phone,
@@ -171,7 +187,7 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['data'] ?? [];
+      return data['bookings'] ?? data['data'] ?? [];
     } else {
       throw Exception("Failed to load bookings");
     }
@@ -380,9 +396,355 @@ class ApiService {
       headers: await getHeaders(),
     );
 
+     if (response.statusCode != 200) {
+        final data = jsonDecode(response.body);
+        throw Exception(data["message"] ?? "Failed to reject booking");
+     }
+  }
+
+  /// ADMIN METHODS
+  static Future<Map<String, dynamic>> getAdminDashboardStats() async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/admin/dashboard-stats"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Failed to load admin dashboard stats");
+    }
+  }
+
+  static Future<List<dynamic>> getPendingUsers() async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/admin/users/pending"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception("Failed to load pending users");
+    }
+  }
+
+  static Future<List<dynamic>> getPendingApartments() async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/admin/apartments/pending"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception("Failed to load pending apartments");
+    }
+  }
+
+  static Future<List<dynamic>> getAllUsers() async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/admin/users"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception("Failed to load all users");
+    }
+  }
+
+  static Future<List<dynamic>> getAllApartments() async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/admin/apartments"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception("Failed to load all apartments");
+    }
+  }
+
+  static Future<void> approveUser(int userId) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/admin/users/$userId/approve"),
+      headers: await getHeaders(),
+    );
+
     if (response.statusCode != 200) {
-       final data = jsonDecode(response.body);
-       throw Exception(data["message"] ?? "Failed to reject booking");
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to approve user");
+    }
+  }
+
+  static Future<void> rejectUser(int userId) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/admin/users/$userId/reject"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to reject user");
+    }
+  }
+
+  static Future<void> deleteUser(int userId) async {
+    final response = await http.delete(
+      Uri.parse("$baseUrl/admin/users/$userId"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to delete user");
+    }
+  }
+
+  static Future<void> approveApartment(int apartmentId) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/admin/apartments/$apartmentId/approve"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to approve apartment");
+    }
+  }
+
+  static Future<void> rejectApartment(int apartmentId) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/admin/apartments/$apartmentId/reject"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to reject apartment");
+    }
+  }
+
+  /// REVIEWS
+  static Future<Map<String, dynamic>> createReview({
+    required int apartmentId,
+    required int rating,
+    required String comment,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/reviews"),
+      headers: await getHeaders(),
+      body: jsonEncode({
+        "apartment_id": apartmentId,
+        "rating": rating,
+        "comment": comment,
+      }),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to create review");
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateReview({
+    required int reviewId,
+    required int rating,
+    required String comment,
+  }) async {
+    final response = await http.put(
+      Uri.parse("$baseUrl/reviews/$reviewId"),
+      headers: await getHeaders(),
+      body: jsonEncode({
+        "rating": rating,
+        "comment": comment,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to update review");
+    }
+  }
+
+  static Future<void> deleteReview(int reviewId) async {
+    final response = await http.delete(
+      Uri.parse("$baseUrl/reviews/$reviewId"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to delete review");
+    }
+  }
+
+  static Future<List<dynamic>> getApartmentReviews(int apartmentId) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/apartments/$apartmentId/reviews"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception("Failed to load reviews");
+    }
+  }
+
+  /// NOTIFICATIONS
+  static Future<Map<String, dynamic>> sendNotification({
+    required int userId,
+    required String title,
+    required String body,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/notification/send"),
+      headers: await getHeaders(),
+      body: jsonEncode({
+        "user_id": userId,
+        "title": title,
+        "body": body,
+      }),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to send notification");
+    }
+  }
+
+  static Future<List<dynamic>> getNotifications() async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/notification"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      // Backend returns array directly, not wrapped in 'data'
+      if (data is List) {
+        return data;
+      }
+      return data['data'] ?? [];
+    } else {
+      throw Exception("Failed to load notifications");
+    }
+  }
+
+  static Future<void> markNotificationAsRead(int notificationId) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/notification/$notificationId/read"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to mark notification as read");
+    }
+  }
+
+  static Future<void> deleteNotification(int notificationId) async {
+    final response = await http.delete(
+      Uri.parse("$baseUrl/notification/$notificationId"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to delete notification");
+    }
+  }
+
+  /// FCM TOKEN
+  static Future<void> storeFcmToken(String token) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/fcm-token"),
+      headers: await getHeaders(),
+      body: jsonEncode({
+        "token": token,
+      }),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to store FCM token");
+    }
+  }
+
+  /// CONVERSATION MANAGEMENT
+  static Future<Map<String, dynamic>> startConversation({
+    required int receiverId,
+    int? apartmentId,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/conversations/start"),
+      headers: await getHeaders(),
+      body: jsonEncode({
+        "receiver_id": receiverId,
+        if (apartmentId != null) "apartment_id": apartmentId,
+      }),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to start conversation");
+    }
+  }
+
+  static Future<void> deleteConversation(int conversationId) async {
+    final response = await http.delete(
+      Uri.parse("$baseUrl/conversations/$conversationId"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to delete conversation");
+    }
+  }
+
+  /// MESSAGE MANAGEMENT
+  static Future<void> markMessageAsRead(int messageId) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/message/read"),
+      headers: await getHeaders(),
+      body: jsonEncode({
+        "message_id": messageId,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to mark message as read");
+    }
+  }
+
+  static Future<void> deleteMessage(int messageId) async {
+    final response = await http.delete(
+      Uri.parse("$baseUrl/messages/$messageId"),
+      headers: await getHeaders(),
+    );
+
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to delete message");
     }
   }
 }

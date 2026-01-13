@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:main/apiser.dart';
 
 class OwnerNotificationsPage extends StatefulWidget {
   const OwnerNotificationsPage({super.key});
@@ -9,38 +11,56 @@ class OwnerNotificationsPage extends StatefulWidget {
 }
 
 class _OwnerNotificationsPageState extends State<OwnerNotificationsPage> {
-  final List<Map<String, String>> _notifications = [
-    {
-      "title": "طلب معاينة جديد",
-      "body": "هناك مستأجر يرغب بمعاينة الشقة رقم 102",
-      "time": "منذ ساعتين",
-      "type": "request",
-    },
-    {
-      "title": "تم استلام دفعة",
-      "body": "قام المستأجر أحمد بتحويل إيجار شهر ديسمبر",
-      "time": "اليوم",
-      "type": "payment",
-    },
-  ];
+  List<dynamic> _notifications = [];
+  bool isLoading = true;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
+    _fetchNotifications();
     _setupInteractions();
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _fetchNotifications();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchNotifications() async {
+    try {
+      final data = await ApiService.getNotifications();
+      setState(() {
+        _notifications = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching notifications: $e");
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _markAsRead(int notificationId) async {
+    try {
+      await ApiService.markNotificationAsRead(notificationId);
+      _fetchNotifications();
+    } catch (e) {
+      print("Error marking notification as read: $e");
+    }
   }
 
   void _setupInteractions() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.notification != null) {
-        setState(() {
-          _notifications.insert(0, {
-            "title": message.notification!.title ?? "New alert",
-            "body": message.notification!.body ?? "Notice content",
-            "time": "Now",
-            "type": "firebase",
-          });
-        });
+        _fetchNotifications();
       }
     });
   }
@@ -51,7 +71,7 @@ class _OwnerNotificationsPageState extends State<OwnerNotificationsPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
-          "Owner logos",
+          "Notifications",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -59,68 +79,63 @@ class _OwnerNotificationsPageState extends State<OwnerNotificationsPage> {
         foregroundColor: Colors.black,
         elevation: 0.5,
       ),
-      body: _notifications.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.notifications_off_outlined,
-                    size: 80,
-                    color: Colors.grey,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _notifications.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.notifications_off_outlined,
+                        size: 80,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 15),
+                      Text(
+                        "No notifications yet",
+                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 15),
-                  Text(
-                    "No notifications yet",
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                ],
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              itemCount: _notifications.length,
-              separatorBuilder: (context, index) =>
-                  const Divider(height: 1, indent: 70),
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: _getIconColor(
-                      _notifications[index]['type'],
-                    ),
-                    child: Icon(
-                      _getIconData(_notifications[index]['type']),
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  title: Text(
-                    _notifications[index]['title']!,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                  subtitle: Text(_notifications[index]['body']!),
-                  trailing: Text(
-                    _notifications[index]['time']!,
-                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                  ),
-                );
-              },
-            ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  itemCount: _notifications.length,
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1, indent: 70),
+                  itemBuilder: (context, index) {
+                    final notification = _notifications[index];
+                    final bool isRead = notification['is_read'] == true || notification['is_read'] == 1;
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: isRead ? Colors.grey : const Color.fromARGB(255, 5, 110, 197),
+                        child: const Icon(
+                          Icons.notifications,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        notification['title'] ?? 'Notification',
+                        style: TextStyle(
+                          fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      subtitle: Text(notification['body'] ?? ''),
+                      trailing: Text(
+                        notification['created_at']?.toString().split('T')[0] ?? '',
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                      onTap: () {
+                        if (!isRead) {
+                          _markAsRead(notification['id']);
+                        }
+                      },
+                    );
+                  },
+                ),
     );
-  }
-
-  IconData _getIconData(String? type) {
-    if (type == "payment") return Icons.account_balance_wallet;
-    if (type == "request") return Icons.home_work;
-    return Icons.notifications;
-  }
-
-  Color _getIconColor(String? type) {
-    if (type == "payment") return Colors.green;
-    if (type == "request") return const Color.fromARGB(255, 5, 110, 197);
-    return Colors.blueGrey;
   }
 }
