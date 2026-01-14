@@ -80,7 +80,7 @@ class AuthController extends Controller
             'birth_date' => 'required|date',
             'profile_image' => 'required|image|mimes:jpg,jpeg,webp,png|max:2048',
             'id_image' => 'required|image|mimes:jpg,jpeg,webp,png|max:4096',
-            // 'role' => 'nullable|in:tenant,owner,admin',
+            'role' => 'nullable|in:tenant,owner',
         ]);
 
         $role = $validated['role'] ?? 'tenant';

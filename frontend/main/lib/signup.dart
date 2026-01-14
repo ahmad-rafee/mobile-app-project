@@ -14,7 +14,7 @@ class signup extends StatefulWidget {
 }
 
 class _SignupState extends State<signup> {
-  String accountType = "user";
+  String accountType = "tenant";
   final TextEditingController _numberController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _conpasswordController = TextEditingController();
@@ -353,12 +353,12 @@ class _SignupState extends State<signup> {
     return SegmentedButton<String>(
       segments: const [
         ButtonSegment(
-          value: "user",
+          value: "tenant",
           label: Text("Tenant", style: TextStyle(color: Colors.black)),
           icon: Icon(Icons.person_outlined, color: Colors.black),
         ),
         ButtonSegment(
-          value: "seller",
+          value: "owner",
           label: Text("Owner", style: TextStyle(color: Colors.black)),
           icon: Icon(Icons.store, color: Colors.black),
         ),
